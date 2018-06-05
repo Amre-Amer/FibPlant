@@ -4,33 +4,62 @@ using UnityEngine;
 
 public class NN2Global
 {
-	int numInputs = 10 * 15;
+	//int numInputs = 10 * 15;
 	int numLayers = 3;
 	float learningRate = .1f;
-	float correctAnswer = 6;
-	float weightCorrectionScaleFactor = 1;
-	float error;
-	float answer;
+	float correctAnswer = 0;
+	float weightCorrectionScaleFactorAve = 1;
+	float errorSum;
+	float errorAve;
+	List<float> error;
+	List<float> answer;
+	List<float> answerAve;
+	List<float> answerSum;
     public List<List<NN2Node>> nodes;
-    public NN2Global()
+	string filename = "?";
+	List <string> filenames;
+	public int indexFilename = 0;
+	public int numEpochs = 15;
+    public NN2Global(int[] layerNodeCounts0)
     {
         nodes = new List<List<NN2Node>>();
-		CreateNodes();
-//		Show();
-		ForwardFeed();
-//		Show();
-		//
-		for (int epoch = 0; epoch < 20; epoch++)
+		LoadDataSets();
+		CreateNodes(layerNodeCounts0);
+		RunTest();
+		for (int epoch = 0; epoch < numEpochs; epoch++)
 		{
-			CalculateCorrection();
+			Debug.Log("Epoch:" + epoch + "---------------------------------\n");
+			errorSum = 0;
+			//answerSum = 0;
+			for (int n = 0; n < filenames.Count; n++)
+			{
+				indexFilename = n;
+				LoadInputs();
+				ForwardFeed();
+				CalcError();
+				//errorSum += error;
+				//answerSum += answer;
+			}
+			errorAve = errorSum / filenames.Count;
+//			answerAve = answerSum / filenames.Count;
+			CalcCorrectionAve();
 			BackPropagate();
-			ForwardFeed();
-//			Show();
 		}
-//		Show();
+		RunTest();
     }
-	public void CreateNodes() {
-		int[] layerNodeCounts = new int[] { numInputs, 2, 1};
+	public void RunTest() {
+		Debug.Log("Test...............\n");
+		for (int n = 0; n < filenames.Count; n++)
+        {
+            indexFilename = n;
+            LoadInputs();
+            ForwardFeed();
+			GetAnswer();
+			Debug.Log("RunTest filename:" + filename + " correctAnswer:" + correctAnswer + " answer:" + answer + "\n");
+        }
+		Debug.Log("...............\n");
+	}
+	public void CreateNodes(int[] layerNodeCounts) {
 		for (int layer = 0; layer < numLayers; layer++) {
 			List<NN2Node> layerNodes = new List<NN2Node>();
 			nodes.Add(layerNodes);
@@ -39,17 +68,46 @@ public class NN2Global
 				NN2Node node = new NN2Node(layer, this);
 			}
 		}
-		LoadInputs();
 		LoadWeights();
 		CreateLinks();
 	}
-	public void CalculateCorrection() {
+	public void LoadDataSets() {
+		filenames = new List<string>();
+		for (int n = 0; n < 7; n++) {
+			filenames.Add("line_" + n);
+		}
+	}
+	public void LoadInputs()
+    {
+		filename = filenames[indexFilename];
+        Texture2D texture = Resources.Load<Texture2D>(filename);
+        Color[] colors = texture.GetPixels();
+        for (int c = 0; c < colors.Length; c++)
+        {
+            float value = colors[c].grayscale;
+            nodes[0][c].output = value;
+        }
+		LoadCorrectAnswer();
+//		Debug.Log("LoadInputs filename:" + filename + " correctAnswer:" + correctAnswer + "\n");
+    }
+	public void LoadCorrectAnswer() {
+		correctAnswer = float.Parse(filename.Substring(filename.Length - 1, 1));
+	}
+	public void GetAnswer() {
 		List<NN2Node> outputLayerNodes = nodes[nodes.Count - 1];
+		foreach(NN2Node nodeOutput in outputLayerNodes) {
+			//answer[]
+		}
         NN2Node nodeAnswer = outputLayerNodes[outputLayerNodes.Count - 1];
-		answer = nodeAnswer.output;
-		error = correctAnswer - answer;
-		weightCorrectionScaleFactor = (error * learningRate + answer) / answer;
-		Debug.Log("CalculateCorrection correctAnswer:" + correctAnswer + " -  answer:" + answer +  " = error:" + error + " weightCorrectionScaleFactor:" + weightCorrectionScaleFactor + "\n");
+        //answer = nodeAnswer.output;
+	}
+	public void CalcError() {
+		GetAnswer();
+		//error = correctAnswer - answer;
+	}
+	public void CalcCorrectionAve() {
+//		weightCorrectionScaleFactorAve = (errorAve * learningRate + answerAve) / answerAve;
+		Debug.Log("CalculateCorrection correctAnswer:" + correctAnswer + " -  answerAve:" + answerAve +  " = errorAve:" + errorAve + " weightCorrectionScaleFactor:" + weightCorrectionScaleFactorAve + "\n");
 	}
 	public void BackPropagate() {
 		for (int layer = 1; layer < numLayers; layer++)
@@ -61,7 +119,7 @@ public class NN2Global
                 List<NN2Node> layerNodeBelow = nodes[layer - 1];
                 foreach (NN2Node nodeBelow in layerNodeBelow)
                 {
-					nodeBelow.weight *= weightCorrectionScaleFactor;
+					nodeBelow.weight *= weightCorrectionScaleFactorAve;
                 }
             }
         }
@@ -96,18 +154,6 @@ public class NN2Global
                 }
             }
         }
-	}
-	public void LoadInputs() {
-		string filename = "line_0";
-		Texture2D texture = Resources.Load<Texture2D>(filename);
-		Color[] colors = texture.GetPixels();
-		for (int c = 0; c < colors.Length; c++) {
-			float value = colors[c].grayscale;
-			nodes[0][c].output = value;
-		}
-		//nodes[0][0].output = 1;
-		//nodes[0][1].output = 2;
-		//nodes[0][2].output = 3;
 	}
 	public void CreateLinks() {
 		for (int layer = 1; layer < numLayers; layer++)

@@ -6,7 +6,11 @@ public class NN2 : MonoBehaviour {
 
 	// Use this for initialization
 	void Start () {
-		NN2Global global = new NN2Global();
+		int numInputs = 10 * 15;
+		int numHiddenLayerNodes = 16;
+		int numOutputLayerNodes = 3;
+		int[] layerNodeCounts = new int[] {numInputs, numHiddenLayerNodes, numOutputLayerNodes};
+		NN2Global global = new NN2Global(layerNodeCounts);
 	}
 	
 	// Update is called once per frame
