@@ -5,6 +5,7 @@ using UnityEngine;
 public class PassGlobal : MonoBehaviour {
 	public List<PassNode> nodes;
 	public List<PassNode> nodesActivated;
+	public List<PassNode> nodesFeedForward;
 	public float distNear;
 	public int numNodes = 100;
 	public float radius = 3;
@@ -19,10 +20,20 @@ public class PassGlobal : MonoBehaviour {
 	public PassGlobal() {
 		nodes = new List<PassNode>();
 		nodesActivated = new List<PassNode>();
+		nodesFeedForward = new List<PassNode>();
 		parentNodes = new GameObject("parentNodes");
 		parentLinks = new GameObject("parentLinks");
 		tmpGo = new GameObject("tmpGo");
-		string style = "image";
+        //
+		string style = "line";
+        //
+		if (style == "line") {
+            for (float x = 0; x < sizeGrid; x ++) 
+            {
+				Vector3 pos = RandomizeWithRange(new Vector3(x, x, 0), randomizeBy);
+                PassNode node = new PassNode(pos, this);
+            }
+        } 
 		if (style == "image") {
 			string filename = "size28_a"; //_test";
 			Texture2D texture = Resources.Load<Texture2D>(filename);
@@ -98,11 +109,28 @@ public class PassGlobal : MonoBehaviour {
 	}
 	public void Update() {
 		nodesActivated.Clear();
+		nodesFeedForward.Clear();
 		foreach(PassNode node in nodes) {
 			node.Update();
 		}
 		UpdateNodesActivated();
+		UpdateNodesFeedForward();
 	}
+	public void AddNodeFeedForward(PassNode node)
+    {
+		if (nodesFeedForward.Contains(node) == false)
+        {
+			nodesFeedForward.Add(node);
+        }
+    }
+	public void UpdateNodesFeedForward()
+    {
+		for (int n = 0; n < nodesFeedForward.Count; n++)
+        {
+			PassNode node = nodesFeedForward[n];
+            node.FeedForward();
+        }
+    }
 	public void AddNodeActivated(PassNode node) {
 		if (nodesActivated.Contains(node) == false) {
 			nodesActivated.Add(node);
