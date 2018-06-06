@@ -3,21 +3,37 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class Num : MonoBehaviour {
-	int numNodesX = 10;
-	int numNodesY = 10;
+	public int numNodesX = 128;
+	public int numNodesY = 128;
 	float[,] nodes;
 	float[,] nodesLast;
 	GameObject parent;
 	int epoch = 0;
-	bool ynStep = false;
+	public bool ynStep = false;
 	float startTime;
 	float delay = 1;
 	int fps;
 	int cntFps;
 	int cntFrames;
 	float valueAdd = 10;
+	public bool ynGos = false;
+	public bool ynMesh = true;
+	bool ynGosLast;
+	MeshManager meshManager;
+	//GameObject meshGo;
+	//MeshFilter meshFilter;
+	//Mesh mesh;
+	//GameObject meshGo2;
+	//MeshFilter meshFilter2;
+    //Mesh mesh2;
+	Mesh[] meshes;
+	GameObject[] meshGos;
+	MeshFilter[] meshFilters;
+	bool ynMeshLast;
+	int numMeshes = 2;
 	// Use this for initialization
 	void Start () {
+		valueAdd = numNodesX / 4;
 		nodes = new float[numNodesX, numNodesY];
 		nodesLast = new float[numNodesX, numNodesY];
 		for (int nx = 0; nx < numNodesX; nx++){
@@ -29,6 +45,104 @@ public class Num : MonoBehaviour {
 		InvokeRepeating("ShowFps", 1, 1);
 	}
 
+	void UPdateMesh()
+	{
+		if (meshManager == null) {
+			meshManager = new MeshManager();
+
+    	}
+		meshManager.numRadDivs = numNodesX - 1;
+		meshManager.numLengthDivs = numNodesY - 1;
+		meshes = new Mesh[numMeshes];
+		meshGos = new GameObject[numMeshes];
+		meshFilters = new MeshFilter[numMeshes];
+//		meshManager.points = CreateDemoMeshPoints(numNodesX, numNodesY);
+		meshManager.points = CreatePointsFromNodes(numNodesX, numNodesY);
+		for (int n = 0; n < numMeshes; n++)
+		{
+			//mesh = meshManager.CreateMeshFromPoints();
+			//mesh2 = meshManager.CreateMeshFromPoints();
+			meshes[n] = meshManager.CreateMeshFromPoints();
+			if (meshGos[n] == null)
+			{
+				meshGos[n] = new GameObject();
+				meshGos[n].transform.position += new Vector3(numNodesX * 1.1f * n, 0, 0);
+
+				Shader shader = Shader.Find("Custom/DoubleSided");
+				Material material = new Material(shader);
+				//			material.mainTexture = CreateGridTexture();
+				material.mainTexture = Resources.Load<Texture2D>("grid");
+				MeshRenderer meshRenderer = meshGos[n].AddComponent<MeshRenderer>();
+				meshRenderer.sharedMaterial = material;
+				meshFilters[n] = meshGos[n].AddComponent<MeshFilter>();
+				//
+				//meshGo2 = new GameObject();
+				//meshGo2.transform.position += new Vector3(numNodesX * 1.1f, 0, 0);
+				//Shader shader2 = Shader.Find("Custom/DoubleSided");
+				//Material material2 = new Material(shader2);
+				////          material.mainTexture = CreateGridTexture();
+				//material2.mainTexture = Resources.Load<Texture2D>("grid");
+				//MeshRenderer meshRenderer2 = meshGo2.AddComponent<MeshRenderer>();
+				//meshRenderer2.sharedMaterial = material2;
+				//meshFilter2 = meshGo2.AddComponent<MeshFilter>();
+			}
+			meshFilters[n].sharedMesh = meshes[n];
+			//meshFilter.sharedMesh = mesh;
+			//meshFilter2.sharedMesh = mesh2;
+			meshGos[n].name = "MeshGo (vertices:" + meshes[n].vertices.Length + ")";
+		}
+		//meshGos[n].name = "MeshGo (vertices:" + meshes[n].vertices.Length + ")";
+		//Debug.Log("mesh vertices:" + mesh.vertices.Length + "\n");
+	}
+
+	Vector3[] CreatePointsFromNodes(int numX, int numY) {
+		Vector3[] points = new Vector3[numX * numY];
+        for (int nx = 0; nx < numX; nx++)
+        {
+            for (int ny = 0; ny < numY; ny++)
+            {
+                int n = nx * numY + ny;
+				float dist = nodes[nx, ny];
+                points[n] = new Vector3(nx, dist, ny);
+            }
+        }
+        return points;
+	}
+
+	Vector3[] CreateDemoMeshPoints(int numX, int numY) {
+        Vector3[] points = new Vector3[numX * numY];
+        for (int nx = 0; nx < numX; nx++)
+        {
+            for (int ny = 0; ny < numY; ny++)
+            {
+                int n = nx * numY + ny;
+				float dist = 1 * Mathf.Sin(cntFrames * .25f + 3 * n * Mathf.Deg2Rad);
+                points[n] = new Vector3(nx, dist, ny);
+            }
+        }
+		return points;
+	}
+
+	Texture2D CreateGridTexture() {
+		int numX = 10;
+        int numY = 10;
+		//numX = numNodesX;
+		//numY = numNodesY;
+		Texture2D texture = new Texture2D(numX, numY);
+		for (int nx = 0; nx < numX; nx++) {
+			for (int ny = 0; ny < numY; ny++)
+            {
+				if (nx % 4 <= 2 || ny % 4 <= 2) {
+					texture.SetPixel(nx, ny, Color.black);
+				} else {
+					texture.SetPixel(nx, ny, Color.white);
+				}
+            }
+		}
+		texture.Apply();
+		return texture;
+	}
+
 	void ShowFps() {
 		fps = cntFps;
 		name = "Num (fps:" + fps + ")";
@@ -37,25 +151,29 @@ public class Num : MonoBehaviour {
     
 	void SineCurve() {
 		int cycle = 200;
-		if (cntFrames >= cycle) cntFrames = 0;
-		if (cntFrames < cycle / 2)
-		{
-			for (int t = 0; t < 2; t++)
+		//if (cntFrames >= cycle) cntFrames = 0;
+		//if (cntFrames < cycle / 2)
+		//{
+			int numT = 5;
+			for (int t = 0; t < numT; t++)
 			{
-				int nx = (int)(numNodesX * (t + 1) * .33f);
-				int ny = (int)(numNodesY * (t + 1) * .33f);
-				float value = valueAdd * Mathf.Sin((cntFrames * 5 + (t * 90)) * Mathf.Deg2Rad);
+				float f = (t + 1) / (numT + 1f);
+				int nx = (int)(numNodesX * f);
+				int ny = (int)(numNodesY * f);
+				nx = Random.Range(0, numNodesX);
+				ny = Random.Range(0, numNodesY);
+				float value = valueAdd * Mathf.Cos((cntFrames * 5 + (t * 90)) * Mathf.Deg2Rad);
 				nodes[nx, ny] = value;
 			}
-		} else {
-			if (cntFrames % (cycle / 10) == 0)
-			{
-				int nx = Random.Range(0, numNodesX);
-				int ny = Random.Range(0, numNodesY);
-				float value = valueAdd;
-				nodes[nx, ny] = value;
-			}
-		}
+		//} else {
+			//if (cntFrames % (cycle / 10) == 0)
+			//{
+			//	int nx = Random.Range(0, numNodesX);
+			//	int ny = Random.Range(0, numNodesY);
+			//	float value = valueAdd;
+			//	nodes[nx, ny] = value;
+			//}
+		//}
 	}
 
 	// Update is called once per frame
@@ -65,11 +183,29 @@ public class Num : MonoBehaviour {
 			startTime = Time.realtimeSinceStartup;
 			SineCurve();
 			Compute();
-			Show();
+			ShowGos();
+			if (ynMesh == true)
+            {
+                UPdateMesh();
+            }
 			epoch++;
 		}
 		cntFps++;
 		cntFrames++;
+		if (ynGosLast == true && ynGos == false) {
+			DestroyImmediate(parent);
+		}
+		ynGosLast = ynGos;
+		//if (ynMesh == true) {
+		//	UPdateMesh();
+		//}
+		if (ynMeshLast == true && ynMesh == false) {
+			for (int n = 0; n < numMeshes; n++)
+			{
+				DestroyImmediate(meshGos[n]);
+			}
+		}
+		ynMeshLast = ynMesh;
 	}
 	void Compute() {
 		nodesLast = nodes;
@@ -88,16 +224,13 @@ public class Num : MonoBehaviour {
 		int nRight = WrapNX(nx + 1);
 		int nDown = WrapNY(ny - 1);
         int nUp = WrapNY(ny + 1);
-		float valueQuarter = value / 4;
-        float valueLeft = valueQuarter;
-        float valueRight = valueQuarter;
-		float valueUp = valueQuarter;
-        float valueDown = valueQuarter;
-        value = 0;
-        nodes[nLeft, ny] += valueLeft;
-		nodes[nRight, ny] += valueRight;
-		nodes[nx, nUp] += valueLeft;
-        nodes[nx, nDown] += valueRight;
+		float share = .5f;
+		float valueQuarter = share * value / 4;
+		value = (1f - share) * value;
+		nodes[nLeft, ny] += valueQuarter;
+		nodes[nRight, ny] += valueQuarter;
+		nodes[nx, nUp] += valueQuarter;
+		nodes[nx, nDown] += valueQuarter;
         nodes[nx, ny] += value;
 	}
 	int WrapNX(int nx) {
@@ -125,7 +258,8 @@ public class Num : MonoBehaviour {
         }
         return resultY;
     }
-	void Show() {
+	void ShowGos() {
+		if (ynGos == false) return;
 		if (parent != null) {
 			DestroyImmediate(parent);
 		}
@@ -162,6 +296,6 @@ public class Num : MonoBehaviour {
 				go.GetComponent<Renderer>().material.color = new Color(r, g, b);
 			}
         }
-		parent.name = "parent(nodes:" + (numNodesX * numNodesY) + ")";
+		parent.name = "parent(nodes:" + (numNodesX * numNodesY);
 	}
 }
