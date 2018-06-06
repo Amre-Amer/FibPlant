@@ -140,8 +140,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: acfab87d09e274c1c83a74fb4a1fc8b0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  numNodesX: 100
-  numNodesY: 100
+  numNodesX: 512
+  numNodesY: 512
+  ynStep: 0
   ynGos: 0
   ynMesh: 1
 --- !u!4 &124326542

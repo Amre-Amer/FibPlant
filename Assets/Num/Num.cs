@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class Num : MonoBehaviour {
-	public int numNodesX = 128;
-	public int numNodesY = 128;
+	int numNodesX = 128 * 2;
+	int numNodesY = 128 * 2;
 	float[,] nodes;
 	float[,] nodesLast;
 	GameObject parent;
@@ -20,17 +20,15 @@ public class Num : MonoBehaviour {
 	public bool ynMesh = true;
 	bool ynGosLast;
 	MeshManager meshManager;
-	//GameObject meshGo;
-	//MeshFilter meshFilter;
-	//Mesh mesh;
-	//GameObject meshGo2;
-	//MeshFilter meshFilter2;
-    //Mesh mesh2;
-	Mesh[] meshes;
-	GameObject[] meshGos;
-	MeshFilter[] meshFilters;
+	Mesh[,] meshes;
+	GameObject[,] meshGos;
+	MeshFilter[,] meshFilters;
+	Material materialMesh;
 	bool ynMeshLast;
-	int numMeshes = 2;
+	int numMeshesX = 2;
+	int numMeshesY = 2;
+	int cntVertices;
+	GameObject meshesGo;
 	// Use this for initialization
 	void Start () {
 		valueAdd = numNodesX / 4;
@@ -48,52 +46,76 @@ public class Num : MonoBehaviour {
 	void UPdateMesh()
 	{
 		if (meshManager == null) {
+			meshesGo = new GameObject();
 			meshManager = new MeshManager();
 
+			meshes = new Mesh[numMeshesX, numMeshesY];
+			meshGos = new GameObject[numMeshesX, numMeshesY];
+			meshFilters = new MeshFilter[numMeshesX, numMeshesY];
+			Shader shader = Shader.Find("Custom/DoubleSided");
+            materialMesh = new Material(shader);
+            //          material.mainTexture = CreateGridTexture();
+            materialMesh.mainTexture = Resources.Load<Texture2D>("grid");
     	}
 		meshManager.numRadDivs = numNodesX - 1;
 		meshManager.numLengthDivs = numNodesY - 1;
-		meshes = new Mesh[numMeshes];
-		meshGos = new GameObject[numMeshes];
-		meshFilters = new MeshFilter[numMeshes];
-//		meshManager.points = CreateDemoMeshPoints(numNodesX, numNodesY);
-		meshManager.points = CreatePointsFromNodes(numNodesX, numNodesY);
-		for (int n = 0; n < numMeshes; n++)
+		//meshManager.points = CreatePointsFromNodes(numNodesX, numNodesY);
+ 		  //meshManager.points = CreateDemoMeshPoints(numNodesX, numNodesY);
+		cntVertices = 0;
+		for (int nx = 0; nx < numMeshesX; nx++)
 		{
-			//mesh = meshManager.CreateMeshFromPoints();
-			//mesh2 = meshManager.CreateMeshFromPoints();
-			meshes[n] = meshManager.CreateMeshFromPoints();
-			if (meshGos[n] == null)
+			for (int ny = 0; ny < numMeshesY; ny++)
 			{
-				meshGos[n] = new GameObject();
-				meshGos[n].transform.position += new Vector3(numNodesX * 1.1f * n, 0, 0);
-
-				Shader shader = Shader.Find("Custom/DoubleSided");
-				Material material = new Material(shader);
-				//			material.mainTexture = CreateGridTexture();
-				material.mainTexture = Resources.Load<Texture2D>("grid");
-				MeshRenderer meshRenderer = meshGos[n].AddComponent<MeshRenderer>();
-				meshRenderer.sharedMaterial = material;
-				meshFilters[n] = meshGos[n].AddComponent<MeshFilter>();
-				//
-				//meshGo2 = new GameObject();
-				//meshGo2.transform.position += new Vector3(numNodesX * 1.1f, 0, 0);
-				//Shader shader2 = Shader.Find("Custom/DoubleSided");
-				//Material material2 = new Material(shader2);
-				////          material.mainTexture = CreateGridTexture();
-				//material2.mainTexture = Resources.Load<Texture2D>("grid");
-				//MeshRenderer meshRenderer2 = meshGo2.AddComponent<MeshRenderer>();
-				//meshRenderer2.sharedMaterial = material2;
-				//meshFilter2 = meshGo2.AddComponent<MeshFilter>();
+//				meshManager.points = CreatePointsFromNodes(numNodesX, numNodesY);
+				meshManager.points = CreatePointsFromNodesForMesh(nx, ny);
+				meshes[nx, ny] = meshManager.CreateMeshFromPoints();
+				if (meshGos[nx, ny] == null)
+				{
+					meshGos[nx, ny] = new GameObject();
+					meshGos[nx, ny].transform.parent = meshesGo.transform;
+					float x = (numNodesX - 1) / numMeshesX * nx;
+					float y = (numNodesY - 1) / numMeshesY * ny;
+					meshGos[nx, ny].transform.position += new Vector3(x, 0, y);
+					MeshRenderer meshRenderer = meshGos[nx, ny].AddComponent<MeshRenderer>();
+					meshRenderer.sharedMaterial = materialMesh;
+					meshFilters[nx, ny] = meshGos[nx, ny].AddComponent<MeshFilter>();
+				}
+				meshFilters[nx, ny].sharedMesh = meshes[nx, ny];
+				int cntVertices0 = meshes[nx, ny].vertices.Length;
+				meshGos[nx, ny].name = "MeshGo (vertices:" + cntVertices0 + ")";
+				cntVertices += cntVertices0;
 			}
-			meshFilters[n].sharedMesh = meshes[n];
-			//meshFilter.sharedMesh = mesh;
-			//meshFilter2.sharedMesh = mesh2;
-			meshGos[n].name = "MeshGo (vertices:" + meshes[n].vertices.Length + ")";
+			meshesGo.name = "Meshes (vertices:" + cntVertices + ")";
 		}
-		//meshGos[n].name = "MeshGo (vertices:" + meshes[n].vertices.Length + ")";
-		//Debug.Log("mesh vertices:" + mesh.vertices.Length + "\n");
 	}
+
+	Vector3[] CreatePointsFromNodesForMesh(int nx, int ny)
+	{
+		int numX = numNodesX / numMeshesX;
+		int numY = numNodesY / numMeshesY;
+		int startX = nx * numX;
+		int startY = ny * numY;
+		meshManager.numRadDivs = numX - 1;
+        meshManager.numLengthDivs = numY - 1;
+		return CreatePointsFromNodesRect(startX, startY, numX, numY);
+	}
+	Vector3[] CreatePointsFromNodesRect(int startX, int startY, int numX, int numY)
+    {
+//		Debug.Log("startX,Y:" + startX + "," + startY + " numX,Y:" + numX + "," + numY + " numNodesX:" + numNodesX + " numNodesY:" + numNodesY + "\n");
+        Vector3[] points = new Vector3[numX * numY];
+		for (int nx = startX; nx < (startX + numX); nx++)
+        {
+			for (int ny = startY; ny < (startY + numY); ny++)
+            {
+				float dist = nodes[nx, ny];
+				int nPoints = (nx - startX) * numY + (ny - startY);
+				//Debug.Log("nPoints:" + nPoints + " nx:" + nx + " ny:" + ny + " (" + points.Length + ")\n");
+                points[nPoints] = new Vector3(nx, dist, ny);
+            }
+        }
+//		Debug.Log("points:" + points.Length + "\n");
+        return points;
+    }
 
 	Vector3[] CreatePointsFromNodes(int numX, int numY) {
 		Vector3[] points = new Vector3[numX * numY];
@@ -145,7 +167,7 @@ public class Num : MonoBehaviour {
 
 	void ShowFps() {
 		fps = cntFps;
-		name = "Num (fps:" + fps + ")";
+		name = "Num (nodes:" + (numNodesX * numNodesY) + " fps:" + fps + ")";
 		cntFps = 0;
 	}
     
@@ -200,9 +222,12 @@ public class Num : MonoBehaviour {
 		//	UPdateMesh();
 		//}
 		if (ynMeshLast == true && ynMesh == false) {
-			for (int n = 0; n < numMeshes; n++)
+			for (int nx = 0; nx < numMeshesX; nx++)
 			{
-				DestroyImmediate(meshGos[n]);
+				for (int ny = 0; ny < numMeshesY; ny++)
+				{
+					DestroyImmediate(meshGos[nx, ny]);
+				}
 			}
 		}
 		ynMeshLast = ynMesh;
