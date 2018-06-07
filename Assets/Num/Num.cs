@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class Num : MonoBehaviour {
-	int numNodesX = 128 * 2;
-	int numNodesY = 128 * 2;
+	int sizeMesh = 128; //128;
+	int numMeshesX = 2;  // * 2 million nodes calculation at 7fps mesh hidden  (7 million calculations per second)
+    int numMeshesY = 2;  // * 4 250K nodes with mesh at 7fps
+	int numNodesX;
+	int numNodesY;
 	float[,] nodes;
 	float[,] nodesLast;
 	GameObject parent;
@@ -19,19 +22,20 @@ public class Num : MonoBehaviour {
 	public bool ynGos = false;
 	public bool ynMesh = true;
 	bool ynGosLast;
-	MeshManager meshManager;
+	//MeshManager meshManager;
 	Mesh[,] meshes;
 	GameObject[,] meshGos;
 	MeshFilter[,] meshFilters;
 	Material materialMesh;
 	bool ynMeshLast;
-	int numMeshesX = 2;
-	int numMeshesY = 2;
 	int cntVertices;
 	GameObject meshesGo;
 	// Use this for initialization
 	void Start () {
+		numNodesX = sizeMesh * numMeshesX;
+		numNodesY = sizeMesh * numMeshesY;
 		valueAdd = numNodesX / 4;
+        //
 		nodes = new float[numNodesX, numNodesY];
 		nodesLast = new float[numNodesX, numNodesY];
 		for (int nx = 0; nx < numNodesX; nx++){
@@ -45,10 +49,9 @@ public class Num : MonoBehaviour {
 
 	void UPdateMesh()
 	{
-		if (meshManager == null) {
+		if (meshes == null) {
+			//meshManager = new MeshManager();
 			meshesGo = new GameObject();
-			meshManager = new MeshManager();
-
 			meshes = new Mesh[numMeshesX, numMeshesY];
 			meshGos = new GameObject[numMeshesX, numMeshesY];
 			meshFilters = new MeshFilter[numMeshesX, numMeshesY];
@@ -57,25 +60,16 @@ public class Num : MonoBehaviour {
             //          material.mainTexture = CreateGridTexture();
             materialMesh.mainTexture = Resources.Load<Texture2D>("grid");
     	}
-		meshManager.numRadDivs = numNodesX - 1;
-		meshManager.numLengthDivs = numNodesY - 1;
-		//meshManager.points = CreatePointsFromNodes(numNodesX, numNodesY);
- 		  //meshManager.points = CreateDemoMeshPoints(numNodesX, numNodesY);
 		cntVertices = 0;
 		for (int nx = 0; nx < numMeshesX; nx++)
 		{
 			for (int ny = 0; ny < numMeshesY; ny++)
 			{
-//				meshManager.points = CreatePointsFromNodes(numNodesX, numNodesY);
-				meshManager.points = CreatePointsFromNodesForMesh(nx, ny);
-				meshes[nx, ny] = meshManager.CreateMeshFromPoints();
+				meshes[nx, ny] = CreateMeshFromNodes(nx, ny);
 				if (meshGos[nx, ny] == null)
 				{
 					meshGos[nx, ny] = new GameObject();
 					meshGos[nx, ny].transform.parent = meshesGo.transform;
-					float x = (numNodesX - 1) / numMeshesX * nx;
-					float y = (numNodesY - 1) / numMeshesY * ny;
-					meshGos[nx, ny].transform.position += new Vector3(x, 0, y);
 					MeshRenderer meshRenderer = meshGos[nx, ny].AddComponent<MeshRenderer>();
 					meshRenderer.sharedMaterial = materialMesh;
 					meshFilters[nx, ny] = meshGos[nx, ny].AddComponent<MeshFilter>();
@@ -89,34 +83,85 @@ public class Num : MonoBehaviour {
 		}
 	}
 
-	Vector3[] CreatePointsFromNodesForMesh(int nx, int ny)
-	{
+	Mesh CreateMeshFromNodes(int nx0, int ny0) {
 		int numX = numNodesX / numMeshesX;
-		int numY = numNodesY / numMeshesY;
-		int startX = nx * numX;
-		int startY = ny * numY;
-		meshManager.numRadDivs = numX - 1;
-        meshManager.numLengthDivs = numY - 1;
-		return CreatePointsFromNodesRect(startX, startY, numX, numY);
-	}
-	Vector3[] CreatePointsFromNodesRect(int startX, int startY, int numX, int numY)
-    {
-//		Debug.Log("startX,Y:" + startX + "," + startY + " numX,Y:" + numX + "," + numY + " numNodesX:" + numNodesX + " numNodesY:" + numNodesY + "\n");
+        int numY = numNodesY / numMeshesY;
+
+		int startX = nx0 * numX;
+        int startY = ny0 * numY;
+
+		int endX = startX + numX;
+        int endY = startY + numY;
+
         Vector3[] points = new Vector3[numX * numY];
-		for (int nx = startX; nx < (startX + numX); nx++)
+        for (int nx = startX; nx < endX; nx++)
         {
-			for (int ny = startY; ny < (startY + numY); ny++)
+            for (int ny = startY; ny < endY; ny++)
             {
-				float dist = nodes[nx, ny];
-				int nPoints = (nx - startX) * numY + (ny - startY);
-				//Debug.Log("nPoints:" + nPoints + " nx:" + nx + " ny:" + ny + " (" + points.Length + ")\n");
+                int nNodes = nx * numNodesY + ny;
+                float dist = nodes[nx, ny];
+                int nPoints = (nx - startX) * numY + (ny - startY);
                 points[nPoints] = new Vector3(nx, dist, ny);
             }
         }
-//		Debug.Log("points:" + points.Length + "\n");
-        return points;
-    }
+		Mesh mesh = CreateMeshFromPoints(points, numX - 1, numY - 1);
+		return mesh;
+	}
 
+	public Mesh CreateMeshFromPoints(Vector3[] points, int numX, int numY)
+    {
+        int numFacesPerQuad = 2;
+        int numVerticesPerQuad = 4;
+        int numQuads = numX * numY;
+        int numTrianglesPerQuad = numFacesPerQuad * 3;
+        Mesh mesh = new Mesh();
+        Vector3[] vertices = new Vector3[numVerticesPerQuad * numQuads];
+        Vector2[] uvs = new Vector2[numVerticesPerQuad * numQuads];
+        int[] triangles = new int[numTrianglesPerQuad * numQuads];
+        int q = 0;
+        for (int nx = 0; nx < numX; nx++)
+        {
+            for (int ny = 0; ny < numY; ny++)
+            {
+				int n0 = getDR2N(nx, ny, numY);
+				int n1 = getDR2N(nx, ny + 1, numY);
+				int n2 = getDR2N(nx + 1, ny + 1, numY);
+				int n3 = getDR2N(nx + 1, ny, numY);
+                Vector3 pnt0 = points[n0];
+                Vector3 pnt1 = points[n1];
+                Vector3 pnt2 = points[n2];
+                Vector3 pnt3 = points[n3];
+                //
+                vertices[q * numVerticesPerQuad + 0] = pnt0;
+                vertices[q * numVerticesPerQuad + 1] = pnt1;
+                vertices[q * numVerticesPerQuad + 2] = pnt2;
+                vertices[q * numVerticesPerQuad + 3] = pnt3;
+				//
+				float s = .05f;
+                uvs[q * numVerticesPerQuad + 0] = new Vector2(0, 0);
+                uvs[q * numVerticesPerQuad + 1] = new Vector2(0, s);
+                uvs[q * numVerticesPerQuad + 2] = new Vector2(s, s);
+                uvs[q * numVerticesPerQuad + 3] = new Vector2(s, 0);
+                //
+                triangles[q * numTrianglesPerQuad + 0] = q * numVerticesPerQuad + 0;
+                triangles[q * numTrianglesPerQuad + 1] = q * numVerticesPerQuad + 1;
+                triangles[q * numTrianglesPerQuad + 2] = q * numVerticesPerQuad + 2;
+                triangles[q * numTrianglesPerQuad + 3] = q * numVerticesPerQuad + 0;
+                triangles[q * numTrianglesPerQuad + 4] = q * numVerticesPerQuad + 2;
+                triangles[q * numTrianglesPerQuad + 5] = q * numVerticesPerQuad + 3;
+                q++;
+            }
+        }
+        mesh.vertices = vertices;
+        mesh.uv = uvs;
+        mesh.triangles = triangles;
+        mesh.RecalculateNormals();
+        return mesh;
+    }
+    int getDR2N(int dx, int dy, int numY)
+    {
+		return dx * (numY + 1) + dy;
+    }
 	Vector3[] CreatePointsFromNodes(int numX, int numY) {
 		Vector3[] points = new Vector3[numX * numY];
         for (int nx = 0; nx < numX; nx++)
@@ -148,8 +193,6 @@ public class Num : MonoBehaviour {
 	Texture2D CreateGridTexture() {
 		int numX = 10;
         int numY = 10;
-		//numX = numNodesX;
-		//numY = numNodesY;
 		Texture2D texture = new Texture2D(numX, numY);
 		for (int nx = 0; nx < numX; nx++) {
 			for (int ny = 0; ny < numY; ny++)
@@ -172,34 +215,22 @@ public class Num : MonoBehaviour {
 	}
     
 	void SineCurve() {
-		int cycle = 200;
-		//if (cntFrames >= cycle) cntFrames = 0;
-		//if (cntFrames < cycle / 2)
-		//{
-			int numT = 5;
-			for (int t = 0; t < numT; t++)
-			{
-				float f = (t + 1) / (numT + 1f);
-				int nx = (int)(numNodesX * f);
-				int ny = (int)(numNodesY * f);
-				nx = Random.Range(0, numNodesX);
-				ny = Random.Range(0, numNodesY);
-				float value = valueAdd * Mathf.Cos((cntFrames * 5 + (t * 90)) * Mathf.Deg2Rad);
-				nodes[nx, ny] = value;
-			}
-		//} else {
-			//if (cntFrames % (cycle / 10) == 0)
-			//{
-			//	int nx = Random.Range(0, numNodesX);
-			//	int ny = Random.Range(0, numNodesY);
-			//	float value = valueAdd;
-			//	nodes[nx, ny] = value;
-			//}
-		//}
+		int numT = 5;
+		for (int t = 0; t < numT; t++)
+		{
+			float f = (t + 1) / (numT + 1f);
+			int nx = (int)(numNodesX * f);
+			int ny = (int)(numNodesY * f);
+			nx = Random.Range(0, numNodesX);
+			ny = Random.Range(0, numNodesY);
+			float value = valueAdd * Mathf.Cos((cntFrames * 5 + (t * 90)) * Mathf.Deg2Rad);
+			nodes[nx, ny] = value;
+		}
 	}
 
 	// Update is called once per frame
 	void Update () {
+		//Debug.Log("............................\n");
 		if (ynStep == false || Time.realtimeSinceStartup - startTime > delay)
 		{
 			startTime = Time.realtimeSinceStartup;
@@ -218,9 +249,6 @@ public class Num : MonoBehaviour {
 			DestroyImmediate(parent);
 		}
 		ynGosLast = ynGos;
-		//if (ynMesh == true) {
-		//	UPdateMesh();
-		//}
 		if (ynMeshLast == true && ynMesh == false) {
 			for (int nx = 0; nx < numMeshesX; nx++)
 			{
