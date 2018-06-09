@@ -40,6 +40,7 @@ public class Num : MonoBehaviour {
 	int cntActivations;
 	List<Vector3> posValues;
 	int numValuesLast;
+	int nTexture;
 	// Use this for initialization
 	void Start () {
 		numNodesX = sizeMesh * numMeshesX;
@@ -52,22 +53,24 @@ public class Num : MonoBehaviour {
 		InvokeRepeating("ShowFps", 1, 1);
 	}
 
-	//void AddValues()
-    //{
-    //    for (int t = 0; t < numValues; t++)
-    //    {
-    //        float f = (t + 1) / (numValues + 1f);
-    //        int nx = (int)(numNodesX * f);
-    //        int ny = (int)(numNodesY * f);
-    //        nx = Random.Range(0, numNodesX);
-    //        ny = Random.Range(0, numNodesY);
-    //        float value = valueAdd * Mathf.Cos((cntFrames * 5 + (t * 90)) * Mathf.Deg2Rad) * 10;
-    //        nodes[nx, ny] = value;
-    //    }
-    //    nodes[numNodesX / 2, numNodesY / 2] = Mathf.Sin(cntFrames * Mathf.Deg2Rad) * valueAdd * 100;
-    //}
-
 	void UpdateValues() {
+		if (cntFrames % 30 == 0) {
+			if (nTexture > 16) nTexture = 0;
+			Texture2D texture = Resources.Load<Texture2D>("size28_" + nTexture);
+			nTexture++;
+			int sx = numNodesX / texture.width;
+			int sy = numNodesY / texture.height;
+			int ox = (numNodesX - texture.width * sx) / 2; 
+			int oy = (numNodesY - texture.height * sy) / 2; 
+			for (int nx = 0; nx < texture.width; nx++) {
+				for (int ny = 0; ny < texture.height; ny++) {
+					Color color = texture.GetPixel(nx, ny);
+					float value = color.grayscale * amplitude;
+					nodes[ox + nx * sx, oy + ny * sy] = value;
+				}
+			}
+		}
+		return;
 		if (numValues != numValuesLast) {
 			posValues = new List<Vector3>();
 			for (int n = 0; n < numValues; n++)
@@ -79,9 +82,10 @@ public class Num : MonoBehaviour {
 		for (int n = 0; n < numValues; n++)
         {
 			int nx = (int)posValues[n].x;
+			nx = WrapNX(nx + cntFrames);
 			int ny = (int)posValues[n].z;
 			float value = valueAdd * Mathf.Cos((cntFrames * 5 + (n * 90)) * Mathf.Deg2Rad) * amplitude;
-            nodes[nx, ny] = value;
+			nodes[nx, ny] = value; // * Random.Range(0f, 1f);
         }
 		numValuesLast = numValues;		
 	}
@@ -229,7 +233,7 @@ public class Num : MonoBehaviour {
 		fps = cntFps;
 		name = "Num (nodes:" + (numNodesX * numNodesY) + " fps:" + fps + ")";
 		cntFps = 0;
-		textInfo.text = (cntActivations / 1000000f).ToString("F2") + " Mps activations";
+		textInfo.text = (nodes.Length / 1000).ToString("F0") + "K nodes\n" + (cntActivations / 1000000f).ToString("F2") + " Mps activations";
 		cntActivations = 0;
 	}
     
