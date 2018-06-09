@@ -101,6 +101,10 @@ public class Num : MonoBehaviour {
         }
 	}
 
+	void UpdateShader() {
+		float radius = 10 * Mathf.Cos(5 * cntFrames * Mathf.Deg2Rad);
+		materialMesh.SetFloat("_Radius", radius);
+	}
 	void UPdateMesh()
 	{
 		if (meshes == null) {
@@ -108,10 +112,12 @@ public class Num : MonoBehaviour {
 			meshes = new Mesh[numMeshesX, numMeshesY];
 			meshGos = new GameObject[numMeshesX, numMeshesY];
 			meshFilters = new MeshFilter[numMeshesX, numMeshesY];
-			Shader shader = Shader.Find("Custom/DoubleSided");
+//			Shader shader = Shader.Find("Custom/DoubleSidedTest");
+			Shader shader = Shader.Find("Custom/Wavy");
             materialMesh = new Material(shader);
             materialMesh.mainTexture = Resources.Load<Texture2D>("grid");
     	}
+		UpdateShader();
 		cntVertices = 0;
 		for (int nx = 0; nx < numMeshesX; nx++)
 		{

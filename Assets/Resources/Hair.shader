@@ -1,7 +1,7 @@
-﻿ Shader "Custom/Expand" {
+﻿ Shader "Custom/Hair" {
     Properties {
       _MainTex ("Texture", 2D) = "white" {}
-      _Amount ("Extrusion Amount", Range(-0.1,1)) = 0.5
+      _Amount ("Extrusion Amount", Range(-0.1,0.1)) = 0
     }
     SubShader {
       Tags { "RenderType" = "Opaque" }
@@ -13,7 +13,6 @@
       float _Amount;
       void vert (inout appdata_full v) {
           v.vertex.xyz += v.normal * _Amount;
-          //v.vertex.z += v.vertex.x;
       }
       sampler2D _MainTex;
       void surf (Input IN, inout SurfaceOutput o) {
